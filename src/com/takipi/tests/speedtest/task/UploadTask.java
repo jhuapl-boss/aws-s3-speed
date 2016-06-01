@@ -4,7 +4,7 @@ import com.amazonaws.services.s3.model.Region;
 
 public abstract class UploadTask implements Runnable
 {
-        protected final Region region;
+    protected final Region region;
 	protected final String bucket;
 	protected final byte[] data;
 	
@@ -14,13 +14,14 @@ public abstract class UploadTask implements Runnable
 	{
 		private final boolean 	success;
 		private final long 	uploadTime;
-		private final long 	downloadTime;
+		private final long 	uploadMultiPartTime;
+		//private final long 	downloadTime;
 		
-		public UploadTaskResult(boolean success, long uploadTime, long downloadTime)
+		public UploadTaskResult(boolean success, long uploadTime, long uploadMultiPartTime)
 		{
 			this.success = success;
 			this.uploadTime = uploadTime;
-			this.downloadTime = downloadTime;
+			this.uploadMultiPartTime = uploadMultiPartTime;
 		}
 		
 		public boolean isSuccess()
@@ -33,9 +34,9 @@ public abstract class UploadTask implements Runnable
 			return uploadTime;
 		}
 
-		public long getDownloadTime()
+		public long getUploadMultiPartTime()
 		{
-			return downloadTime;
+			return uploadMultiPartTime;
 		}
 	}
 	
@@ -52,6 +53,6 @@ public abstract class UploadTask implements Runnable
 		return result;
 	}
 	
-	@Override
+	//@Override
 	public abstract void run();
 }

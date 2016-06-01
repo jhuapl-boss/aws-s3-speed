@@ -26,7 +26,7 @@ public class SpeedTest
 	private final UploadTaskType uploadType;
 	
 	private final Map<Region, List<Long>> uploadTimings;
-	private final Map<Region, List<Long>> downloadTimings;
+	private final Map<Region, List<Long>> uploadMutiPartTimings;
 	
 	public SpeedTest(int rounds, byte[] data, UploadTaskType uploadType)
 	{
@@ -35,7 +35,7 @@ public class SpeedTest
 		this.uploadType = uploadType;
 		
 		this.uploadTimings = new HashMap<Region, List<Long>>();
-		this.downloadTimings = new HashMap<Region, List<Long>>();
+		this.uploadMutiPartTimings = new HashMap<Region, List<Long>>();
 	}
 	
 	public void start()
@@ -70,13 +70,15 @@ public class SpeedTest
 				}
 				
 				uploadTask.run();
+				if( uploadType == UploadTaskType.SDK)
+					((UploadWithAwsSdkTask)uploadTask).performMultiPartUploadTest();
 				
 				UploadTaskResult result = uploadTask.getResult();
 				
 				if ((result != null) && (result.isSuccess()))
 				{
 					uploadTimings.get(region).add(Long.valueOf(result.getUploadTime()));
-					downloadTimings.get(region).add(Long.valueOf(result.getDownloadTime()));
+					uploadMutiPartTimings.get(region).add(Long.valueOf(result.getUploadMultiPartTime()));
 				}
 			}
 		}
@@ -87,19 +89,25 @@ public class SpeedTest
 		return uploadTimings;
 	}
 
-	public Map<Region, List<Long>> getDownloadTimings()
+	public Map<Region, List<Long>> getMultiPartUploadTimings()
 	{
-		return downloadTimings;
+		return uploadMutiPartTimings;
 	}
 	
 	private void init()
 	{
-		for (Region region : Region.values())
-		{
-			List<Long> list = new ArrayList<Long>();
-			this.uploadTimings.put(region, list);
-			this.downloadTimings.put(region, list);
-		}
+		Region region = Region.US_Standard;
+		List<Long> list = new ArrayList<Long>();
+		List<Long> list2 = new ArrayList<Long>();
+		this.uploadTimings.put(region, list);
+		this.uploadMutiPartTimings.put(region, list2);
+
+//		for (Region region : Region.values())
+//		{
+//			List<Long> list = new ArrayList<Long>();
+//			this.uploadTimings.put(region, list);
+//			this.downloadTimings.put(region, list);
+//		}
 		
 		S3Manager.initBuckets(false);
 	}

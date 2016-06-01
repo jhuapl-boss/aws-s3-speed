@@ -2,22 +2,46 @@ package com.takipi.tests.speedtest.aws;
 
 import java.io.*;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import com.amazonaws.services.s3.model.S3Object;
+import com.amazonaws.services.s3.model.UploadPartRequest;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+
+import com.amazonaws.AmazonClientException;
+import com.amazonaws.auth.profile.ProfileCredentialsProvider;
+import com.amazonaws.event.ProgressEvent;
+import com.amazonaws.event.ProgressListener;
+import com.amazonaws.services.s3.model.PutObjectRequest;
+import com.amazonaws.services.s3.transfer.TransferManager;
+import com.amazonaws.services.s3.transfer.TransferManagerConfiguration;
+import com.amazonaws.services.s3.transfer.Upload;
+import com.amazonaws.services.s3.transfer.model.UploadResult;
 import com.amazonaws.HttpMethod;
+import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
+import com.amazonaws.services.identitymanagement.model.transform.GetCredentialReportResultStaxUnmarshaller;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3Client;
+import com.amazonaws.services.s3.model.AbortMultipartUploadRequest;
+import com.amazonaws.services.s3.model.CompleteMultipartUploadRequest;
 import com.amazonaws.services.s3.model.GeneratePresignedUrlRequest;
+import com.amazonaws.services.s3.model.InitiateMultipartUploadRequest;
+import com.amazonaws.services.s3.model.InitiateMultipartUploadResult;
 import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.amazonaws.services.s3.model.Region;
+import com.amazonaws.services.s3.model.PartETag;
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.AmazonServiceException;
 import com.amazonaws.regions.RegionUtils;
+import com.amazonaws.ClientConfiguration;
+import com.amazonaws.services.s3.transfer.TransferManager;
+import com.amazonaws.services.s3.transfer.Upload;
 
 public class S3Manager
 {
@@ -27,13 +51,17 @@ public class S3Manager
     private static final Logger logger = LoggerFactory.getLogger(S3Manager.class);
 
     private static final AmazonS3 s3client;
+    private static final TransferManager txMgr;
 
-    public static final Map<Region, String> buckets; 
+    public static final Map<Region, String> buckets;
+    public static final String SPEED_TEST_BUCKET = "theboss.io-speed-test";
+    private static long totalbytes = 0;
 	
     static
     {
         s3client = new AmazonS3Client(CredentialsManager.getCreds());
         buckets = new HashMap<Region, String>();
+        txMgr = new TransferManager(CredentialsManager.getCreds());
     }
 	
     public static void initBuckets(String prefix, String suffix)
@@ -50,29 +78,33 @@ public class S3Manager
     public static void initBuckets(boolean create)
     {
         String regionName = "";
-        for (Region region : Region.values())
+//        for (Region region : Region.values())
             {
-                logger.debug("Region: '{}'", region);
-
-                if (region.toString() != null) {
-                    regionName = region.toString();
-                } else {
-                    regionName = "us-east-1";
-                }
-                logger.debug("RegionName: '{}'", regionName);
-                    
-                // need to skip this region because we're not authorized
-                if (regionName.equals("s3-us-gov-west-1") || regionName.equals("cn-north-1")) {
-                    logger.debug("Skipping: Not authorized for region {}", regionName);
-                    continue;
-                }
-                    
-                StringBuilder bucketNameBuilder = new StringBuilder();
-                bucketNameBuilder.append(BUCKET_PREFIX);
-                bucketNameBuilder.append(regionName);
-                bucketNameBuilder.append(BUCKET_SUFFIX);
-			
-                String bucketName = bucketNameBuilder.toString().toLowerCase();
+            	Region region = Region.US_Standard;
+            	regionName = "us-east-1";
+//                logger.debug("Region: '{}'", region);
+//                
+//                if (region.toString() != null) {
+//                    regionName = region.toString();
+//                } else {
+//                    regionName = "us-east-1";
+//                }
+//                logger.debug("RegionName: '{}'", regionName);
+//                System.out.println("RegionName: " + regionName);
+//                
+//                // need to skip this region because we're not authorized
+//                if (regionName.equals("s3-us-gov-west-1") || regionName.equals("cn-north-1")) {
+//                    logger.debug("Skipping: Not authorized for region {}", regionName);
+//                    continue;
+//                }
+//                    
+//                StringBuilder bucketNameBuilder = new StringBuilder();
+//                bucketNameBuilder.append(BUCKET_PREFIX);
+//                bucketNameBuilder.append(regionName);
+//                bucketNameBuilder.append(BUCKET_SUFFIX);
+//			
+//                String bucketName = bucketNameBuilder.toString().toLowerCase();
+                String bucketName = SPEED_TEST_BUCKET;
                     
                 buckets.put(region, bucketName);
 			
@@ -108,7 +140,7 @@ public class S3Manager
                                          "such as not being able to access the network.");
                             logger.debug("Error Message: " + ace.getMessage());
                         }
-                    }
+                    }  // comment out to here to remove create
 
             }
     }
@@ -131,14 +163,16 @@ public class S3Manager
 
     }
 
-    public static boolean putBytes(Region region, String bucket, String key, byte[] bytes)
+    public static boolean putBytes(Region region, String bucket, String key, byte[] bytes, boolean multiPart)
     {
         ObjectMetadata metaData = new ObjectMetadata();
         metaData.setContentLength(bytes.length);
-
-        return doPutObject(region, bucket, key, new ByteArrayInputStream(bytes), metaData);
+        if( multiPart)
+        	return doPutObjectMultiPart(region, bucket, key, new ByteArrayInputStream(bytes), metaData);
+        else 
+        	return doPutObject(region, bucket, key, new ByteArrayInputStream(bytes), metaData);
     }
-
+    
     public static byte[] getBytes(Region region, String bucket, String key)
     {
         return doGetObject(region, bucket, key);
@@ -175,6 +209,111 @@ public class S3Manager
             }
     }
 
+    private static boolean doPutObjectMultiPart(Region region, String bucket, String key, InputStream is, ObjectMetadata metaData)
+    {
+    	TransferManagerConfiguration tmc = new TransferManagerConfiguration();
+    	tmc.setMinimumUploadPartSize(15000000);
+        TransferManager tm = new TransferManager( CredentialsManager.getCreds()); //new DefaultAWSCredentialsProviderChain());        
+        tm.setConfiguration(tmc);
+        
+        // For more advanced uploads, you can create a request object 
+        // and supply additional request parameters (ex: progress listeners,
+        // canned ACLs, etc.)
+        PutObjectRequest request = new PutObjectRequest(
+        		bucket, key, is, metaData);
+
+        // You can ask the upload for its progress, or you can 
+        // add a ProgressListener to your request to receive notifications 
+        // when bytes are transferred.
+        
+//        request.setGeneralProgressListener(new ProgressListener() {
+//			public void progressChanged(ProgressEvent progressEvent) {
+//				long bytesTransferred = S3Manager.addBytes(progressEvent.getBytesTransferred());
+//				//if(bytesTransferred % (1024*1024) == 0)
+//					logger.debug("Transferred bytes: " + bytesTransferred);
+//				
+//							
+//			}
+//		});
+
+        // TransferManager processes all transfers asynchronously, 
+        // so this call will return immediately.
+        Upload upload = tm.upload(request);
+
+        try {
+        	// You can block and wait for the upload to finish
+        	logger.debug("about to wait for completion");
+        	upload.waitForCompletion();
+        	//UploadResult upresult = upload.waitForUploadResult();
+        	logger.debug("finished waiting for completion");
+        	//upload.abort();
+        	return true;
+        } catch (AmazonClientException amazonClientException) {
+        	System.out.println("Unable to upload file, upload aborted.");
+        	amazonClientException.printStackTrace();
+        	return false;
+        } catch (InterruptedException e) {
+        	logger.debug("Multipart upload was interrupted.");
+			e.printStackTrace();
+			return false;
+		} finally {
+			try {
+			if(tm!=null)
+				tm.shutdownNow();
+			} catch (Exception e) {			
+			}
+		}
+    	
+//    	DefaultAWSCredentialsProviderChain credentialProviderChain = new DefaultAWSCredentialsProviderChain();
+//    	TransferManager tx = new TransferManager(
+//    	               credentialProviderChain.getCredentials());
+//    	Upload myUpload = tx.upload(bucket, key, is, metaData);
+//    	 
+//    	// You can poll your transfer's status to check its progress
+//    	if (myUpload.isDone() == false) {
+//    	       System.out.println("Transfer: " + myUpload.getDescription());
+//    	       System.out.println("  - State: " + myUpload.getState());
+//    	       System.out.println("  - Progress: "
+//    	                       + myUpload.getProgress().getBytesTransferred());
+//    	}
+//    	 
+//    	// Transfers also allow you to set a <code>ProgressListener</code> to receive
+//    	// asynchronous notifications about your transfer's progress.
+//    	myUpload.addProgressListener(myProgressListener);
+//    	 
+//    	// Or you can block the current thread and wait for your transfer to
+//    	// to complete. If the transfer fails, this method will throw an
+//    	// AmazonClientException or AmazonServiceException detailing the reason.
+//    	myUpload.waitForCompletion();
+//    	 
+//    	// After the upload is complete, call shutdownNow to release the resources.
+//    	tx.shutdownNow();    	
+//    	
+//        try
+//            {
+//                String regionName = "";
+//                if (region.toString() != null) {
+//                    regionName = region.toString();
+//                } else {
+//                    regionName = "us-east-1";
+//                }
+//                logger.debug("Setregion: {}", regionName);
+//                // need to set the region for "eu-central-1" region to work
+//                // this enables V4 signing
+//                // careful, this is not thread-safe!
+//                s3client.setRegion(RegionUtils.getRegion(regionName));
+//                logger.debug("PUT object to S3 bucket: {}", bucket);
+//                s3client.putObject(bucket, key, is, metaData);
+//                return true;
+//            }
+//        catch (Exception e)
+//            {
+//                logger.error("Error putting object", e);
+//                return false;
+//            }
+        
+    }
+
     private static byte[] doGetObject(Region region, String bucket, String key)
     {
         try
@@ -203,7 +342,9 @@ public class S3Manager
             writer.close();
             reader.close();
             object.close();
-            return bytes.toByteArray();
+            byte[] data = bytes.toByteArray();
+            bytes.close();
+            return data;            
         }
         catch (Exception e)
         {
@@ -236,4 +377,14 @@ public class S3Manager
             return;
         }
     }
+    
+    public static long addBytes(long bytes) {
+    	totalbytes += bytes;
+    	return totalbytes;
+    }
+    
+    public static void clearBytes() {
+    	totalbytes =0L;
+    }
+
 }

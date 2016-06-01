@@ -12,11 +12,33 @@ import com.amazonaws.services.s3.model.Region;
 public class UploadWithAwsSdkTask extends UploadTask
 {
 	private static final Logger logger = LoggerFactory.getLogger(UploadWithAwsSdkTask.class);
+	private long uploadTime =  0;
+	private boolean success = false;
 	
     public UploadWithAwsSdkTask(Region region, String bucket, byte[] data)
 	{
             super(region, bucket, data);
 	}
+    
+    public void performMultiPartUploadTest() {
+		String key = UUID.randomUUID().toString();
+		
+		long start = System.currentTimeMillis();
+
+		boolean successMultiPart = S3Manager.putBytes(region, bucket, key, data, true);
+
+		long finish = System.currentTimeMillis();
+
+		long uploadMultiPartTime = finish - start;
+		
+		logger.debug("UploadMultiPast task to {} finished in {} ms", bucket, uploadMultiPartTime);
+
+		result = new UploadTaskResult(success && successMultiPart, uploadTime, uploadMultiPartTime);
+
+		S3Manager.deleteBytes(region, bucket, key);
+
+		logger.debug("Delete task to {} finished", bucket);
+    }
 	
 	@Override
 	public void run()
@@ -25,31 +47,20 @@ public class UploadWithAwsSdkTask extends UploadTask
 		
 		long start = System.currentTimeMillis();
 		
-		boolean success = S3Manager.putBytes(region, bucket, key, data);
+		success = S3Manager.putBytes(region, bucket, key, data, false);
 		
 		long finish = System.currentTimeMillis();
 		
-		long uploadTime = finish - start;
+		uploadTime = finish - start;
+		
+		logger.debug("Upload task to bucket {} finished in {} ms", bucket, uploadTime);
 
 		if (!success) {
 			result = new UploadTaskResult(success, uploadTime, 0);
 			return;
 		}
 
-		start = System.currentTimeMillis();
-
-		byte[] returnData = S3Manager.getBytes(region, bucket, key);
-
-		finish = System.currentTimeMillis();
-
-		long downloadTime = finish - start;
-		
-		logger.debug("Download task to {} finished in {} ms", bucket, downloadTime);
-
-		result = new UploadTaskResult(success && returnData != null && Arrays.equals(data, returnData), uploadTime, downloadTime);
-
 		S3Manager.deleteBytes(region, bucket, key);
-
 		logger.debug("Delete task to {} finished", bucket);
 	}
 }

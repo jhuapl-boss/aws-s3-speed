@@ -1,5 +1,6 @@
 package com.takipi.tests.speedtest;
 
+import java.io.File;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -13,6 +14,7 @@ import com.takipi.tests.speedtest.aws.S3Manager;
 import com.takipi.tests.speedtest.data.DataBytes;
 import com.takipi.tests.speedtest.data.DataBytes.Size;
 import com.takipi.tests.speedtest.task.UploadTaskType;
+import edu.jhuapl.speedtest.FileLogger;
 
 public class Main
 {
@@ -20,66 +22,56 @@ public class Main
 	
     public static void main(String[] args) throws Exception
     {
-        if (!((args.length == 5) || (args.length == 8)))
+        if (!(args.length == 2))
             {
                 System.out.println("AWS upload speed - By Takipi");
-                System.out.println("Usage: CREATE AWS_KEY AWS_SECRET PREFIX SUFFIX");
-                System.out.println("Usage: DELETE AWS_KEY AWS_SECRET PREFIX SUFFIX");
-                System.out.println("Usage: RUN AWS_KEY AWS_SECRET PREFIX SUFFIX ROUNDS SMALL|MEDIUM|BIG|HUGE SDK|PLAIN");
-                System.out.println("PREFIX can be something like aws-speed-test-");
-                System.out.println("SUFFIX can be something like -xx-xx-xxxx");
+                System.out.println("Usage: AWS_KEY AWS_SECRET");
                 return;
             }
+		File f = new File(".");
+		logger.debug("path: " + f.getAbsolutePath());
+        CredentialsManager.setup(args[0], args[1]);
+        S3Manager.initBuckets(false);
 		
-        CredentialsManager.setup(args[1], args[2]);
-        S3Manager.initBuckets(args[3], args[4]);
+        int rounds = 1;
+        Size size = Size.HUGE;
+        byte[] data = DataBytes.getData(size);
 		
-        if (args[0].equals("CREATE"))
-            {
-                S3Manager.initBuckets(true);
-                return;
-            }
-        else if (args[0].equals("DELETE"))
-            {
-                S3Manager.initBuckets(false);
-                S3Manager.removeBuckets();
-                return;
-            }
-		
-        int rounds = Integer.parseInt(args[5]);
-        byte[] data = DataBytes.getData(Size.valueOf(args[6]));
-		
-        UploadTaskType uploadType = UploadTaskType.valueOf(args[7]);
+        UploadTaskType uploadType = UploadTaskType.SDK;
 		
         logger.debug("Starting test");
 		
         SpeedTest speedTest = new SpeedTest(rounds, data, uploadType);
         speedTest.start();
+        
 		
         logger.debug("Test finished");
 
-        logger.debug("Upload results");
-        printResults(speedTest.getUploadTimings());
-        logger.debug("Download results");
-        printResults(speedTest.getDownloadTimings());
+        printResults("Upload results " + DataBytes.getSizeStr(size) + ": ", 
+        		speedTest.getUploadTimings());
+        printResults("MultiPartUpload results " + DataBytes.getSizeStr(size) + ": ",
+        		speedTest.getMultiPartUploadTimings());
     }
 	
-    private static void printResults(Map<Region, List<Long>> timings)
+    private static void printResults(String prefixStr, Map<Region, List<Long>> timings)
     {
+    	// Adjusted to only use US_Standard instead of all regions.
         String regionName = "";
         
-        for (Region region : Region.values())
+//        for (Region region : Region.values())
             {
+            	Region region = Region.US_Standard;
+            	
                 if (region.toString() != null) {
                     regionName = region.toString();
                 } else {
                     regionName = "us-east-1";
                 }
                 logger.debug("RegionName: '{}'", regionName);
-                if (regionName.equals("s3-us-gov-west-1") || regionName.equals("cn-north-1")) {
-                    logger.debug("Skipping: Not authorized for region {}", regionName);
-                    continue;
-                }
+//                if (regionName.equals("s3-us-gov-west-1") || regionName.equals("cn-north-1")) {
+//                    logger.debug("Skipping: Not authorized for region {}", regionName);
+//                    continue;
+//                }
 
                 long sum = 0;
 			
@@ -87,7 +79,7 @@ public class Main
 
                 if (regionTimings.size() == 0) {
                     logger.debug("Skipping: No results for region {}", regionName);
-                    continue;
+//                    continue;
                 }
 			
                 if (regionTimings.size() > 1)
@@ -110,24 +102,34 @@ public class Main
 			
                 double avg = sum / (double)timingsCount;
                 double median;
-                    {
-                        int middle = timingsCount / 2;
-                        if (timingsCount == 1)
-                            {
-                                median = regionTimings.get(0);
-                            }
-                        else if (timingsCount % 2 == 1)
-                            {
-                                median = regionTimings.get(middle);
-                            }
-                        else
+                if( regionTimings.size() == 1)
+                {
+                	median = sum;
+                } 
+                else 
+                {
+                    int middle = timingsCount / 2;
+                    if (timingsCount == 1)
                         {
-                            median = (regionTimings.get(middle - 1) + regionTimings.get(middle)) / 2.0;
+                            median = regionTimings.get(0);
                         }
+                    else if (timingsCount % 2 == 1)
+                        {
+                            median = regionTimings.get(middle);
+                        }
+                    else
+                    {
+                        median = (regionTimings.get(middle - 1) + regionTimings.get(middle)) / 2.0;
                     }
-
-                logger.info("Region {}: {} valid tasks. lowest: {} ms, highest: {} ms. Average: {} ms, median: {} ms.", region, timingsCount,
-                            regionTimings.get(0), regionTimings.get(timingsCount - 1), avg, median);
+                }
+                if(regionTimings.isEmpty()) {
+                	FileLogger.info(prefixStr + "Region " + regionName + ": has no timings.", logger);
+                }
+                else {
+                	String output = String.format("%s Region %s: %d valid tasks. lowest: %d ms, highest: %d ms. Average: %.0f ms, median: %.0f ms.", 
+        			prefixStr, regionName, timingsCount, regionTimings.get(0), regionTimings.get(timingsCount - 1), avg, median);
+                	FileLogger.info(output, logger);
+                }
             }
     }
 }
