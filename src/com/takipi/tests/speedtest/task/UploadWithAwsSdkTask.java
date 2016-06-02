@@ -26,18 +26,13 @@ public class UploadWithAwsSdkTask extends UploadTask
 		String key = UUID.randomUUID().toString();
 		
 		long start = System.currentTimeMillis();
-
 		boolean successMultiPart = S3Manager.putFile(region, bucket, key, fileName, true);
-
 		long finish = System.currentTimeMillis();
 
 		long uploadMultiPartTime = finish - start;
 		
-		logger.debug("UploadMultiPast task to {} finished in {} ms", bucket, uploadMultiPartTime);
-
+		logger.debug("MultiPartUpload task to {} finished in {} ms", bucket, uploadMultiPartTime);
 		result = new UploadTaskResult(success && successMultiPart, uploadTime, uploadMultiPartTime);
-
-		logger.debug("Deleting newly created object");
 
 		S3Manager.deleteBytes(region, bucket, key);
 
@@ -68,6 +63,5 @@ public class UploadWithAwsSdkTask extends UploadTask
 		}
 
 		S3Manager.deleteBytes(region, bucket, key);
-		logger.debug("Delete task to {} finished", bucket);
 	}
 }

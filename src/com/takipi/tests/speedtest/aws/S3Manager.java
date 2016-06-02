@@ -176,9 +176,9 @@ public class S3Manager
         ObjectMetadata metaData = new ObjectMetadata();
         metaData.setContentLength(bytes.length);
         if( multiPart)
-        	return doPutObjectMultiPart(region, bucket, key, new ByteArrayInputStream(bytes), metaData);
-        else 
-        	return doPutObject(region, bucket, key, new ByteArrayInputStream(bytes), metaData);
+	        	return doPutObjectMultiPart(region, bucket, key, new ByteArrayInputStream(bytes), metaData);
+	        else 
+	        	return doPutObject(region, bucket, key, new ByteArrayInputStream(bytes), metaData);
     }
     
     public static byte[] getBytes(Region region, String bucket, String key)
@@ -201,12 +201,10 @@ public class S3Manager
                 } else {
                     regionName = "us-east-1";
                 }
-                logger.debug("Setregion: {}", regionName);
                 // need to set the region for "eu-central-1" region to work
                 // this enables V4 signing
                 // careful, this is not thread-safe!
                 s3client.setRegion(RegionUtils.getRegion(regionName));
-                logger.debug("PUT object to S3 bucket: {}", bucket);
                 s3client.putObject(bucket, key, is, metaData);
                 return true;
             }
@@ -246,14 +244,38 @@ public class S3Manager
     
 
     private static boolean doPutObjectMultiPart(String bucket, String key, String file) throws IOException {
-    	logger.debug("Starting multipart upload.");
-    	MultipartUploadUtil mpu = new MultipartUploadUtil(CredentialsManager.getCreds());
-    	return mpu.multiPartUpload(bucket, key, file);
+    	logger.debug("Starting MultipartUpload.");
+    	TransferManagerConfiguration tmc = new TransferManagerConfiguration();
+    	tmc.setMinimumUploadPartSize(15*1024*1024);
+        TransferManager tm = new TransferManager( CredentialsManager.getCreds()); //new DefaultAWSCredentialsProviderChain());        
+        tm.setConfiguration(tmc);
+        PutObjectRequest request = new PutObjectRequest(
+        		bucket, key, new File(file));
+        Upload upload = tm.upload(request);
+        try {
+        	// You can block and wait for the upload to finish
+        	upload.waitForCompletion();
+        	return true;
+        } catch (AmazonClientException amazonClientException) {
+        	System.out.println("Unable to upload file, upload aborted.");
+        	amazonClientException.printStackTrace();
+        	return false;
+        } catch (InterruptedException e) {
+        	logger.debug("Multipart upload was interrupted.");
+			e.printStackTrace();
+			return false;
+		} finally {
+			try {
+			if(tm!=null)
+				tm.shutdownNow();
+			} catch (Exception e) {			
+			}
+		}
     }
     
     private static boolean doPutObjectMultiPart(Region region, String bucket, String key, InputStream is, ObjectMetadata metaData)
     {
-    	logger.debug("Starting multipart upload.");
+    	logger.debug("Starting MultipartUpload.");
     	TransferManagerConfiguration tmc = new TransferManagerConfiguration();
     	tmc.setMinimumUploadPartSize(15000000);
         TransferManager tm = new TransferManager( CredentialsManager.getCreds()); //new DefaultAWSCredentialsProviderChain());        
@@ -264,23 +286,6 @@ public class S3Manager
         // canned ACLs, etc.)
         PutObjectRequest request = new PutObjectRequest(
         		bucket, key, is, metaData);
-
-        // You can ask the upload for its progress, or you can 
-        // add a ProgressListener to your request to receive notifications 
-        // when bytes are transferred.
-        
-//        request.setGeneralProgressListener(new ProgressListener() {
-//			public void progressChanged(ProgressEvent progressEvent) {
-//				long bytesTransferred = S3Manager.addBytes(progressEvent.getBytesTransferred());
-//				//if(bytesTransferred % (1024*1024) == 0)
-//					logger.debug("Transferred bytes: " + bytesTransferred);
-//				
-//							
-//			}
-//		});
-
-        // TransferManager processes all transfers asynchronously, 
-        // so this call will return immediately.
         Upload upload = tm.upload(request);
 
         try {
@@ -307,54 +312,6 @@ public class S3Manager
 			}
 		}
     	
-//    	DefaultAWSCredentialsProviderChain credentialProviderChain = new DefaultAWSCredentialsProviderChain();
-//    	TransferManager tx = new TransferManager(
-//    	               credentialProviderChain.getCredentials());
-//    	Upload myUpload = tx.upload(bucket, key, is, metaData);
-//    	 
-//    	// You can poll your transfer's status to check its progress
-//    	if (myUpload.isDone() == false) {
-//    	       System.out.println("Transfer: " + myUpload.getDescription());
-//    	       System.out.println("  - State: " + myUpload.getState());
-//    	       System.out.println("  - Progress: "
-//    	                       + myUpload.getProgress().getBytesTransferred());
-//    	}
-//    	 
-//    	// Transfers also allow you to set a <code>ProgressListener</code> to receive
-//    	// asynchronous notifications about your transfer's progress.
-//    	myUpload.addProgressListener(myProgressListener);
-//    	 
-//    	// Or you can block the current thread and wait for your transfer to
-//    	// to complete. If the transfer fails, this method will throw an
-//    	// AmazonClientException or AmazonServiceException detailing the reason.
-//    	myUpload.waitForCompletion();
-//    	 
-//    	// After the upload is complete, call shutdownNow to release the resources.
-//    	tx.shutdownNow();    	
-//    	
-//        try
-//            {
-//                String regionName = "";
-//                if (region.toString() != null) {
-//                    regionName = region.toString();
-//                } else {
-//                    regionName = "us-east-1";
-//                }
-//                logger.debug("Setregion: {}", regionName);
-//                // need to set the region for "eu-central-1" region to work
-//                // this enables V4 signing
-//                // careful, this is not thread-safe!
-//                s3client.setRegion(RegionUtils.getRegion(regionName));
-//                logger.debug("PUT object to S3 bucket: {}", bucket);
-//                s3client.putObject(bucket, key, is, metaData);
-//                return true;
-//            }
-//        catch (Exception e)
-//            {
-//                logger.error("Error putting object", e);
-//                return false;
-//            }
-        
     }
 
     private static byte[] doGetObject(Region region, String bucket, String key)
@@ -406,12 +363,11 @@ public class S3Manager
             } else {
                 regionName = "us-east-1";
             }
-            logger.debug("Setregion: {}", regionName);
             // need to set the region for "eu-central-1" region to work
             // this enables V4 signing
             // careful, this is not thread-safe!
             s3client.setRegion(RegionUtils.getRegion(regionName));
-            logger.debug("DELETE object from S3 bucket: {}", bucket);
+            logger.debug("Deleting object from S3 bucket: {}", bucket);
             s3client.deleteObject(bucket, key);
         }
         catch (Exception e)

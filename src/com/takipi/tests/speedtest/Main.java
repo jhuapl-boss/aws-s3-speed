@@ -1,6 +1,7 @@
 package com.takipi.tests.speedtest;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -20,6 +21,7 @@ import edu.jhuapl.speedtest.FileLogger;
 public class Main
 {
     private static final Logger logger = LoggerFactory.getLogger(Main.class);
+    private static final int ROUNDS = 12;
     
     public static void printUsage() {
         System.out.println("AWS upload speed Test for theboss.io");
@@ -55,29 +57,27 @@ public class Main
     		printUsage();
             return;
         }
-
         
         S3Manager.initBuckets(false);
 		
-        int rounds = 7;
-        Size size = Size.HUGE;
-        String fileName = DataBytes.getData(size);
+        sizeTestRound(Size.HUGE);
+        sizeTestRound(Size.SUPER);
+    }
+
+	private static void sizeTestRound(Size size) throws Exception, IOException {
+		String fileName = DataBytes.getData(size);
 		
         UploadTaskType uploadType = UploadTaskType.SDK;
-		
-        logger.debug("Starting test");
-		
-        SpeedTest speedTest = new SpeedTest(rounds, fileName, uploadType);
+        logger.debug("Starting tests for " + DataBytes.getSizeStr(size));
+        SpeedTest speedTest = new SpeedTest(ROUNDS, fileName, uploadType);
         speedTest.start();
-        
-		
-        logger.debug("Test finished");
+        logger.debug("Tests finished for " + DataBytes.getSizeStr(size));
 
-        printResults("Upload results " + DataBytes.getSizeStr(size) + ": ", 
+        printResults("Type: SingleUpload, Size: " + DataBytes.getSizeStr(size), 
         		speedTest.getUploadTimings());
-        printResults("MultiPartUpload results " + DataBytes.getSizeStr(size) + ": ",
+        printResults("Type: MultiPartUpload, Size: " + DataBytes.getSizeStr(size),
         		speedTest.getMultiPartUploadTimings());
-    }
+	}
 	
     private static void printResults(String prefixStr, Map<Region, List<Long>> timings)
     {
@@ -93,7 +93,7 @@ public class Main
                 } else {
                     regionName = "us-east-1";
                 }
-                logger.debug("RegionName: '{}'", regionName);
+                //logger.debug("RegionName: '{}'", regionName);
 //                if (regionName.equals("s3-us-gov-west-1") || regionName.equals("cn-north-1")) {
 //                    logger.debug("Skipping: Not authorized for region {}", regionName);
 //                    continue;
@@ -152,7 +152,7 @@ public class Main
                 	FileLogger.info(prefixStr + "Region " + regionName + ": has no timings.", logger);
                 }
                 else {
-                	String output = String.format("%s Region %s: %d valid tasks. lowest: %d ms, highest: %d ms. Average: %.0f ms, median: %.0f ms.", 
+                	String output = String.format("%s, Region: %s, Timings: %d, Lowest: %d ms, Highest: %d ms, Average: %.0f ms, Median: %.0f ms", 
         			prefixStr, regionName, timingsCount, regionTimings.get(0), regionTimings.get(timingsCount - 1), avg, median);
                 	FileLogger.info(output, logger);
                 }

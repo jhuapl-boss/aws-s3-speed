@@ -21,6 +21,7 @@
 			<plugin>
 				<artifactId>maven-assembly-plugin</artifactId>
 				<configuration>
+					<finalName>theboss.io-speed-test</finalName>
 					<archive>
 						<manifest>
 							<mainClass>com.takipi.tests.speedtest.Main</mainClass>
