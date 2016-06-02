@@ -211,6 +211,7 @@ public class S3Manager
 
     private static boolean doPutObjectMultiPart(Region region, String bucket, String key, InputStream is, ObjectMetadata metaData)
     {
+    	logger.debug("Starting multipart upload.");
     	TransferManagerConfiguration tmc = new TransferManagerConfiguration();
     	tmc.setMinimumUploadPartSize(15000000);
         TransferManager tm = new TransferManager( CredentialsManager.getCreds()); //new DefaultAWSCredentialsProviderChain());        

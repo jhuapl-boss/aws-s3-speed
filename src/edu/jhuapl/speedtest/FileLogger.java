@@ -9,7 +9,7 @@ import com.takipi.tests.speedtest.Main;
 /**
  * This is a quick workaround for logback which doesn't have a way to log to two different 
  * levels with a different output for each one. 
- * @author hiderrt1
+ * @author Sandy Hider
  *
  */
 public class FileLogger {

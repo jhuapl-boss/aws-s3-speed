@@ -10,6 +10,7 @@ import org.slf4j.LoggerFactory;
 
 import com.amazonaws.services.s3.model.Region;
 import com.takipi.tests.speedtest.aws.CredentialsManager;
+import com.takipi.tests.speedtest.aws.MultipartUploadUtil;
 import com.takipi.tests.speedtest.aws.S3Manager;
 import com.takipi.tests.speedtest.data.DataBytes;
 import com.takipi.tests.speedtest.data.DataBytes.Size;
@@ -19,18 +20,43 @@ import edu.jhuapl.speedtest.FileLogger;
 public class Main
 {
     private static final Logger logger = LoggerFactory.getLogger(Main.class);
+    
+    public static void printUsage() {
+        System.out.println("AWS upload speed Test for theboss.io");
+        System.out.println("Usage: RUN AWS_KEY AWS_SECRET");
+        System.out.println("   This will perform the speed test and create results file");
+        System.out.println("   in the same directory");
+        System.out.println("Usage: LIST AWS_KEY AWS_SECRET");
+        System.out.println("   Lists all multipart uploads");
+        System.out.println("Usage: ABORT AWS_KEY AWS_SECRET");
+        System.out.println("   Aborts all multipart uploads older than 7 days");
+    }
 	
     public static void main(String[] args) throws Exception
     {
-        if (!(args.length == 2))
+        if (!(args.length == 3))
             {
-                System.out.println("AWS upload speed - By Takipi");
-                System.out.println("Usage: AWS_KEY AWS_SECRET");
+        		printUsage();
                 return;
             }
-		File f = new File(".");
-		logger.debug("path: " + f.getAbsolutePath());
-        CredentialsManager.setup(args[0], args[1]);
+        CredentialsManager.setup(args[1], args[2]);
+        
+        if(args[0].toLowerCase().equals("list")) {
+        	MultipartUploadUtil mpuUtil = new MultipartUploadUtil(CredentialsManager.getCreds());
+        	mpuUtil.listMultipartUploads(S3Manager.SPEED_TEST_BUCKET);
+        	return;
+        } else if(args[0].toLowerCase().equals("abort")) {
+        	MultipartUploadUtil mpuUtil = new MultipartUploadUtil(CredentialsManager.getCreds());
+        	mpuUtil.abortMultipartUploads(S3Manager.SPEED_TEST_BUCKET);
+        	return;
+        } else if(!args[0].toLowerCase().equals("run")) {
+        	System.out.println("Unknown command.");
+        	System.out.println("");
+    		printUsage();
+            return;
+        }
+
+        
         S3Manager.initBuckets(false);
 		
         int rounds = 1;

@@ -35,9 +35,10 @@ public class UploadWithAwsSdkTask extends UploadTask
 
 		result = new UploadTaskResult(success && successMultiPart, uploadTime, uploadMultiPartTime);
 
+		logger.debug("Deleting newly created object");
+
 		S3Manager.deleteBytes(region, bucket, key);
 
-		logger.debug("Delete task to {} finished", bucket);
     }
 	
 	@Override

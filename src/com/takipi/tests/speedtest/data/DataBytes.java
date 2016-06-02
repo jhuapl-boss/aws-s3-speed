@@ -95,7 +95,7 @@ public class DataBytes
 
 	
 	private static byte[] download(String file) throws Exception
-	{
+	{	// TODO put back http download
 		URL url = new URL("file:///home/hiderrt1/Downloads/100MB.zip");
 		@SuppressWarnings("restriction")
 		sun.net.www.protocol.file.FileURLConnection httpConn = (sun.net.www.protocol.file.FileURLConnection) url.openConnection();
