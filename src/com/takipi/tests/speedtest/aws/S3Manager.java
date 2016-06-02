@@ -162,6 +162,14 @@ public class S3Manager
         return s3client.generatePresignedUrl(request);
 
     }
+    
+    public static boolean putFile(Region region, String bucket, String key, String file, boolean multiPart) throws IOException
+    {
+        if( multiPart)
+        	return doPutObjectMultiPart(bucket, key, file);
+        else 
+        	return doPutObject(region, bucket, key, file);
+    }
 
     public static boolean putBytes(Region region, String bucket, String key, byte[] bytes, boolean multiPart)
     {
@@ -208,7 +216,41 @@ public class S3Manager
                 return false;
             }
     }
+    
+    private static boolean doPutObject(Region region, String bucket, String key, String fileName)
+    {
+        try
+            {
+                String regionName = "";
+                if (region.toString() != null) {
+                    regionName = region.toString();
+                } else {
+                    regionName = "us-east-1";
+                }
+                logger.debug("Setregion: {}", regionName);
+                // need to set the region for "eu-central-1" region to work
+                // this enables V4 signing
+                // careful, this is not thread-safe!
+                s3client.setRegion(RegionUtils.getRegion(regionName));
+                logger.debug("PUT object to S3 bucket: {}", bucket);
+                File file = new File(fileName);
+                s3client.putObject(bucket, key, file);
+                return true;
+            }
+        catch (Exception e)
+            {
+                logger.error("Error putting object", e);
+                return false;
+            }
+    }
+    
 
+    private static boolean doPutObjectMultiPart(String bucket, String key, String file) throws IOException {
+    	logger.debug("Starting multipart upload.");
+    	MultipartUploadUtil mpu = new MultipartUploadUtil(CredentialsManager.getCreds());
+    	return mpu.multiPartUpload(bucket, key, file);
+    }
+    
     private static boolean doPutObjectMultiPart(Region region, String bucket, String key, InputStream is, ObjectMetadata metaData)
     {
     	logger.debug("Starting multipart upload.");

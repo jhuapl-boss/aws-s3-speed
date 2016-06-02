@@ -6,7 +6,7 @@ public abstract class UploadTask implements Runnable
 {
     protected final Region region;
 	protected final String bucket;
-	protected final byte[] data;
+	protected final String fileName;
 	
 	protected UploadTaskResult result;
 	
@@ -40,11 +40,11 @@ public abstract class UploadTask implements Runnable
 		}
 	}
 	
-    public UploadTask(Region region, String bucket, byte[] data)
+    public UploadTask(Region region, String bucket, String fileName)
 	{
             this.region = region;
             this.bucket = bucket;
-            this.data 	= data;
+            this.fileName 	= fileName;
 	}
 	
 	

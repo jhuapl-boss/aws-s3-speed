@@ -1,10 +1,16 @@
 package com.takipi.tests.speedtest.data;
 
 import java.io.BufferedInputStream;
+import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.Random;
+
+import java.nio.file.Files;
+import java.nio.file.LinkOption;
+import java.nio.file.Paths;
+import java.nio.file.Path;
 
 import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
@@ -19,15 +25,13 @@ public class DataBytes
 
 	public static enum Size
 	{
-		SMALL, MEDIUM, BIG, HUGE, SUPER
+		MEDIUM, BIG, HUGE, SUPER
 	}
 
-	public static byte[] getData(Size size) throws Exception
+	public static String getData(Size size) throws Exception
 	{
 		switch (size)
 		{
-			case SMALL:
-				return get1KBData();
 			case MEDIUM:
 				return get5MBData();
 			case BIG:
@@ -45,8 +49,6 @@ public class DataBytes
 	{
 		switch (size)
 		{
-			case SMALL:
-				return "1KB";
 			case MEDIUM:
 				return "5MB";
 			case BIG:
@@ -60,52 +62,50 @@ public class DataBytes
 	}
 
 
-	private static byte[] get1KBData() throws Exception
+	private static String get5MBData() throws Exception
 	{
-		byte[] bytes = new byte[1024];
-		Random random = new Random();
-		random.nextBytes(bytes);
-
-		return bytes;
-	}
-
-	private static byte[] get5MBData() throws Exception
-	{
-        logger.info("Starting to download 5MB file.");
 		return download("5MB.zip");
 	}
 
-	private static byte[] get10MBData() throws Exception
+	private static String get10MBData() throws Exception
 	{
-        logger.info("Starting to download 10MB file.");
 		return download("10MB.zip");
 	}
 	
-	private static byte[] get100MBData() throws Exception
+	private static String get100MBData() throws Exception
 	{
-        logger.info("Starting to download 100MB file. This could take a while.");
 		return download("100MB.zip");
 	}
 
-	private static byte[] get500MBData() throws Exception
+	private static String get500MBData() throws Exception
 	{
-        logger.info("Starting to download 512MB file. This could take a while.");
 		return download("512MB.zip");
 	}
+	
 
 	
-	private static byte[] download(String file) throws Exception
-	{	// TODO put back http download
-		URL url = new URL("file:///home/hiderrt1/Downloads/100MB.zip");
-		@SuppressWarnings("restriction")
-		sun.net.www.protocol.file.FileURLConnection httpConn = (sun.net.www.protocol.file.FileURLConnection) url.openConnection();
-		
-//		URL url = new URL("http", URL, "/" + file);
-//		HttpURLConnection httpConn = (HttpURLConnection) url.openConnection();
-//		httpConn.addRequestProperty("User-Agent", USER_AGENT);
-		
-		@SuppressWarnings("restriction")
-		InputStream in = httpConn.getInputStream();
-		return IOUtils.toByteArray(in);
+	private static String download(String file) throws Exception
+	{	
+		Path path = Paths.get(file);
+		if(Files.exists(path)) {
+			logger.debug("Using local copy of " + file + ".");
+			return file;
+		} else {
+			if( file.equals("100MB.zip") || file.equals("512MB.zip"))
+				logger.debug("Starting to download of " + file +
+						" file. This could take a while.");
+			else
+				logger.debug("Starting to download of " + file + ".");
+			URL url = new URL("http", URL, "/" + file);
+			HttpURLConnection httpConn = (HttpURLConnection) url.openConnection();
+			httpConn.addRequestProperty("User-Agent", USER_AGENT);
+			InputStream in = httpConn.getInputStream();
+			FileOutputStream out = new FileOutputStream(file);
+			logger.debug("Caching file " + file + " locally.");
+			IOUtils.copy(in, out);
+			out.close();
+			in.close();
+			return file;
+		}
 	}
 }

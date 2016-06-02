@@ -17,12 +17,9 @@ import com.amazonaws.services.s3.model.UploadPartRequest;
 
 public class UploadObjectMPULowLevelAPI {
 
-    public static void main(String[] args) throws IOException {
-        String existingBucketName  = "*** Provide-Your-Existing-BucketName ***"; 
-        String keyName             = "*** Provide-Key-Name ***";
-        String filePath            = "*** Provide-File-Path ***";   
+    public static void MultiPartUpload(String existingBucketName, String keyName, String filePath) throws IOException {
         
-        AmazonS3 s3Client = new AmazonS3Client(new ProfileCredentialsProvider());        
+        AmazonS3 s3Client = new AmazonS3Client(CredentialsManager.getCreds());        
 
         // Create a list of UploadPartResponse objects. You get one of these
         // for each part upload.
@@ -36,7 +33,7 @@ public class UploadObjectMPULowLevelAPI {
 
         File file = new File(filePath);
         long contentLength = file.length();
-        long partSize = 5242880; // Set part size to 5 MB.
+        long partSize = 5242880*3; // Set part size to 5 MB.
 
         try {
             // Step 2: Upload parts.

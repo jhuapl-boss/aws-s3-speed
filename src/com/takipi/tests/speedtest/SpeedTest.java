@@ -1,5 +1,6 @@
 package com.takipi.tests.speedtest;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -22,23 +23,24 @@ public class SpeedTest
 	private static final Logger logger = LoggerFactory.getLogger(SpeedTest.class);
 	
 	private final int rounds;
-	private final byte[] data;
+	//private final byte[] data;
+	private final String fileName;
 	private final UploadTaskType uploadType;
 	
 	private final Map<Region, List<Long>> uploadTimings;
 	private final Map<Region, List<Long>> uploadMutiPartTimings;
 	
-	public SpeedTest(int rounds, byte[] data, UploadTaskType uploadType)
+	public SpeedTest(int rounds, String fileName, UploadTaskType uploadType)
 	{
 		this.rounds = rounds;
-		this.data = data;
+		this.fileName = fileName;
 		this.uploadType = uploadType;
 		
 		this.uploadTimings = new HashMap<Region, List<Long>>();
 		this.uploadMutiPartTimings = new HashMap<Region, List<Long>>();
 	}
 	
-	public void start()
+	public void start() throws IOException
 	{
 		init();
 		
@@ -55,23 +57,22 @@ public class SpeedTest
 			{
 				logger.debug("About to upload in region {}", region);
 				
-				UploadTask uploadTask;
-				
-				switch (uploadType)
-				{
-					case PLAIN:
-                                            uploadTask = new UploadWithPlainJavaTask(region, buckets.get(region), data);
-						break;
-					case SDK:
-                                            uploadTask = new UploadWithAwsSdkTask(region,buckets.get(region), data);
-						break;
-					default:
-						throw new IllegalStateException("Bad upload type");
-				}
+				UploadWithAwsSdkTask uploadTask;
+				uploadTask = new UploadWithAwsSdkTask(region,buckets.get(region), fileName);
+//				switch (uploadType)
+//				{
+//					case PLAIN:
+//                                            uploadTask = new UploadWithPlainJavaTask(region, buckets.get(region), data);
+//						break;
+//					case SDK:
+//                                            uploadTask = new UploadWithAwsSdkTask(region,buckets.get(region), data);
+//						break;
+//					default:
+//						throw new IllegalStateException("Bad upload type");
+//				}
 				
 				uploadTask.run();
-				if( uploadType == UploadTaskType.SDK)
-					((UploadWithAwsSdkTask)uploadTask).performMultiPartUploadTest();
+				uploadTask.performMultiPartUploadTest();
 				
 				UploadTaskResult result = uploadTask.getResult();
 				

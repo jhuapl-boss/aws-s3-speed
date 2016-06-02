@@ -20,9 +20,9 @@ public class UploadWithPlainJavaTask extends UploadTask
 {
 	private static final Logger logger = LoggerFactory.getLogger(UploadWithPlainJavaTask.class);
 	
-    public UploadWithPlainJavaTask(Region region, String bucket, byte[] data)
+    public UploadWithPlainJavaTask(Region region, String bucket, String fileName)
 	{
-            super(region, bucket, data);
+            super(region, bucket, fileName);
 	}
 	
 	@Override
@@ -53,7 +53,7 @@ public class UploadWithPlainJavaTask extends UploadTask
 			
 			OutputStream output = httpCon.getOutputStream();
 			
-			IOUtils.copy(new ByteArrayInputStream(data), output);
+			IOUtils.copy(new FileInputStream(fileName), output);
 			
 			boolean success = (httpCon.getResponseCode() == HttpURLConnection.HTTP_OK); // Blocking until file upload completed
 			
@@ -83,7 +83,7 @@ public class UploadWithPlainJavaTask extends UploadTask
 			ByteArrayOutputStream bytes = new ByteArrayOutputStream();
 			IOUtils.copy(input, bytes);
 
-			success = (httpCon.getResponseCode() == HttpURLConnection.HTTP_OK) && Arrays.equals(data, bytes.toByteArray()); // Blocking until file download completed
+			success = (httpCon.getResponseCode() == HttpURLConnection.HTTP_OK); // Blocking until file download completed
 
 			finish = System.currentTimeMillis();
 

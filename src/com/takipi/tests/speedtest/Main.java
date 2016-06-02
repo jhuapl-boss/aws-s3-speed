@@ -59,15 +59,15 @@ public class Main
         
         S3Manager.initBuckets(false);
 		
-        int rounds = 1;
+        int rounds = 7;
         Size size = Size.HUGE;
-        byte[] data = DataBytes.getData(size);
+        String fileName = DataBytes.getData(size);
 		
         UploadTaskType uploadType = UploadTaskType.SDK;
 		
         logger.debug("Starting test");
 		
-        SpeedTest speedTest = new SpeedTest(rounds, data, uploadType);
+        SpeedTest speedTest = new SpeedTest(rounds, fileName, uploadType);
         speedTest.start();
         
 		
