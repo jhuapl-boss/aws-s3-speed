@@ -38,7 +38,7 @@ public class S3Manager
     public static final Map<Region, String> buckets;
     public static final String SPEED_TEST_BUCKET = "theboss.io-speed-test";
     
-    private static int minUploadPartSizeMB = 15;
+    private static int minUploadPartSizeMB = 5;
 	
     static
     {
@@ -269,7 +269,7 @@ public class S3Manager
     {
     	logger.debug("Starting MultipartUpload.");
     	TransferManagerConfiguration tmc = new TransferManagerConfiguration();
-    	tmc.setMinimumUploadPartSize(15000000);
+    	tmc.setMinimumUploadPartSize(5*1024*1024);
         TransferManager tm = new TransferManager( CredentialsManager.getCreds()); //new DefaultAWSCredentialsProviderChain());        
         tm.setConfiguration(tmc);
         

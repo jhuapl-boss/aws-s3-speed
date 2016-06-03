@@ -21,6 +21,8 @@ public class Main
 {
     private static final Logger logger = LoggerFactory.getLogger(Main.class);
     private static final int ROUNDS = 12;
+    private static boolean fullThroughputTest = false;
+
     
     public static void printUsage() {
         System.out.println("AWS upload speed Test for theboss.io");
@@ -57,13 +59,28 @@ public class Main
             return;
         }
         if( args.length == 4) {
-        	int sizeInMegs = Integer.valueOf(args[3]);
-        	logger.debug("Setting Minimum Upload Part size to " + sizeInMegs);
-        	S3Manager.setMinUploadPartSizeMB(sizeInMegs);
+        	if(args[3].toLowerCase().equals("full")) {
+        		logger.debug("Performing full throughput testings, only use Multipart 512MB tests");
+        		fullThroughputTest = true;
+        	} else {
+	        	int sizeInMegs = 5;	
+	        	try {
+	        	sizeInMegs = Integer.valueOf(args[3]);
+	        	} catch (NumberFormatException n) {
+	            	System.out.println("Unknown command.");
+	            	System.out.println("");
+	        		printUsage();
+	                return;
+	        	}
+	        	logger.debug("Setting Minimum Upload Part size to " + sizeInMegs);
+	        	S3Manager.setMinUploadPartSizeMB(sizeInMegs);
+        	}
         }
         S3Manager.initBuckets(false);
 		
-        sizeTestRound(Size.HUGE);
+        if(!fullThroughputTest) {
+        	sizeTestRound(Size.HUGE);
+        }
         sizeTestRound(Size.SUPER);
     }
 
@@ -72,12 +89,14 @@ public class Main
 		
         UploadTaskType uploadType = UploadTaskType.SDK;
         logger.debug("Starting tests for " + DataBytes.getSizeStr(size));
-        SpeedTest speedTest = new SpeedTest(ROUNDS, fileName, uploadType);
+        SpeedTest speedTest = new SpeedTest(ROUNDS, fileName, uploadType, fullThroughputTest);
         speedTest.start();
         logger.debug("Tests finished for " + DataBytes.getSizeStr(size));
 
-        printResults("Type: SingleUpload, Size: " + DataBytes.getSizeStr(size), 
+        if(!fullThroughputTest) {
+        	printResults("Type: SingleUpload, Size: " + DataBytes.getSizeStr(size), 
         		speedTest.getUploadTimings());
+        }
         printResults("Type: MultiPartUpload, Size: " + DataBytes.getSizeStr(size),
         		speedTest.getMultiPartUploadTimings());
 	}

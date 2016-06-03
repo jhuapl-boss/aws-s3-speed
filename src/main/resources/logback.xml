@@ -17,7 +17,7 @@
 
 	<appender name="FILE"
 		class="ch.qos.logback.core.FileAppender">
-		<file>/home/hiderrt1/workspace/aws-s3-speed/theboss.io-speed-test-results.txt</file>
+		<file>./theboss.io-speed-test-results.txt</file>
 		<append>true</append>
 		<encoder>
 			<pattern>

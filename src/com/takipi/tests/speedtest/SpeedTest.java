@@ -28,11 +28,15 @@ public class SpeedTest
 	private final Map<Region, List<Long>> uploadTimings;
 	private final Map<Region, List<Long>> uploadMutiPartTimings;
 	
-	public SpeedTest(int rounds, String fileName, UploadTaskType uploadType)
+    private boolean fullThroughputTest = false;
+
+	
+	public SpeedTest(int rounds, String fileName, UploadTaskType uploadType, boolean fullThroughputTest)
 	{
 		this.rounds = rounds;
 		this.fileName = fileName;
 		this.uploadType = uploadType;
+		this.fullThroughputTest = fullThroughputTest;
 		
 		this.uploadTimings = new HashMap<Region, List<Long>>();
 		this.uploadMutiPartTimings = new HashMap<Region, List<Long>>();
@@ -57,7 +61,11 @@ public class SpeedTest
 				
 				UploadWithAwsSdkTask uploadTask;
 				uploadTask = new UploadWithAwsSdkTask(region,buckets.get(region), fileName);
-				uploadTask.run();
+				if(!fullThroughputTest) {
+					uploadTask.run();
+				} else {
+					uploadTask.setSuccess(true);
+				}
 				uploadTask.performMultiPartUploadTest();
 				
 				UploadTaskResult result = uploadTask.getResult();
@@ -97,5 +105,13 @@ public class SpeedTest
 //		}
 		
 		S3Manager.initBuckets(false);
+	}
+	
+	public boolean isFullThroughputTest() {
+		return fullThroughputTest;
+	}
+
+	public void setFullThroughputTest(boolean fullThroughputTest) {
+		this.fullThroughputTest = fullThroughputTest;
 	}
 }

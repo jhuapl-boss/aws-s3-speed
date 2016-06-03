@@ -15,9 +15,9 @@ public class UploadWithAwsSdkTask extends UploadTask
 	private long uploadTime =  0;
 	private boolean success = false;
 	
-    public UploadWithAwsSdkTask(Region region, String bucket, String fileName)
+	public UploadWithAwsSdkTask(Region region, String bucket, String fileName)
 	{
-            super(region, bucket, fileName);
+		super(region, bucket, fileName);
 	}
     
     public void performMultiPartUploadTest() throws IOException {
@@ -62,4 +62,14 @@ public class UploadWithAwsSdkTask extends UploadTask
 
 		S3Manager.deleteBytes(region, bucket, key);
 	}
+	
+    public boolean isSuccess() {
+		return success;
+	}
+
+	public void setSuccess(boolean success) {
+		this.success = success;
+	}
+
+
 }
