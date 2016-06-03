@@ -1,7 +1,10 @@
 aws-s3-speed
 ============
 
-A project we use in www.takipi.com to test upload speeds to Amazon Simple Storage Service (S3) regions.
+This project is used to create a java jar file for testing theboss.io bandwidth.  It uses source code from www.takipi.com.
+
+We have modified the code to run a series of tests using 100MB and 512MB files uploading them using Single Upload and MultiPart Upload methods.
+
 
 Installation
 ------------

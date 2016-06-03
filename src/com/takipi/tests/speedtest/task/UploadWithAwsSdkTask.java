@@ -1,14 +1,12 @@
 package com.takipi.tests.speedtest.task;
 
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.takipi.tests.speedtest.aws.S3Manager;
-import com.takipi.tests.speedtest.aws.UploadObjectMPULowLevelAPI;
 import com.amazonaws.services.s3.model.Region;
 
 public class UploadWithAwsSdkTask extends UploadTask

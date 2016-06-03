@@ -1,6 +1,5 @@
 package com.takipi.tests.speedtest;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
@@ -36,7 +35,7 @@ public class Main
 	
     public static void main(String[] args) throws Exception
     {
-        if (!(args.length == 3))
+        if (!((args.length == 3) || (args.length == 4)))
             {
         		printUsage();
                 return;
@@ -57,7 +56,11 @@ public class Main
     		printUsage();
             return;
         }
-        
+        if( args.length == 4) {
+        	int sizeInMegs = Integer.valueOf(args[3]);
+        	logger.debug("Setting Minimum Upload Part size to " + sizeInMegs);
+        	S3Manager.setMinUploadPartSizeMB(sizeInMegs);
+        }
         S3Manager.initBuckets(false);
 		
         sizeTestRound(Size.HUGE);
@@ -152,8 +155,8 @@ public class Main
                 	FileLogger.info(prefixStr + "Region " + regionName + ": has no timings.", logger);
                 }
                 else {
-                	String output = String.format("%s, Region: %s, Timings: %d, Lowest: %d ms, Highest: %d ms, Average: %.0f ms, Median: %.0f ms", 
-        			prefixStr, regionName, timingsCount, regionTimings.get(0), regionTimings.get(timingsCount - 1), avg, median);
+                	String output = String.format("%s, Region: %s, Timings: %d, Lowest: %d ms, Highest: %d ms, Average: %.0f ms, Median: %.0f ms, MinUploadPartSize: %d MB", 
+        			prefixStr, regionName, timingsCount, regionTimings.get(0), regionTimings.get(timingsCount - 1), avg, median, S3Manager.getMinUploadPartSizeMB());
                 	FileLogger.info(output, logger);
                 }
             }

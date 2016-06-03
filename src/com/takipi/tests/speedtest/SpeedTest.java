@@ -14,8 +14,6 @@ import com.amazonaws.services.s3.model.Region;
 import com.takipi.tests.speedtest.aws.S3Manager;
 import com.takipi.tests.speedtest.task.UploadTaskType;
 import com.takipi.tests.speedtest.task.UploadWithAwsSdkTask;
-import com.takipi.tests.speedtest.task.UploadTask;
-import com.takipi.tests.speedtest.task.UploadWithPlainJavaTask;
 import com.takipi.tests.speedtest.task.UploadTask.UploadTaskResult;
 
 public class SpeedTest
@@ -55,22 +53,10 @@ public class SpeedTest
 			
 			for (Region region : regions)
 			{
-				logger.debug("About to upload in region {}", region);
+//				logger.debug("About to upload in region {}", region);
 				
 				UploadWithAwsSdkTask uploadTask;
 				uploadTask = new UploadWithAwsSdkTask(region,buckets.get(region), fileName);
-//				switch (uploadType)
-//				{
-//					case PLAIN:
-//                                            uploadTask = new UploadWithPlainJavaTask(region, buckets.get(region), data);
-//						break;
-//					case SDK:
-//                                            uploadTask = new UploadWithAwsSdkTask(region,buckets.get(region), data);
-//						break;
-//					default:
-//						throw new IllegalStateException("Bad upload type");
-//				}
-				
 				uploadTask.run();
 				uploadTask.performMultiPartUploadTest();
 				

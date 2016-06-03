@@ -1,14 +1,11 @@
 package com.takipi.tests.speedtest.data;
 
-import java.io.BufferedInputStream;
 import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.util.Random;
 
 import java.nio.file.Files;
-import java.nio.file.LinkOption;
 import java.nio.file.Paths;
 import java.nio.file.Path;
 
@@ -100,6 +97,8 @@ public class DataBytes
 			HttpURLConnection httpConn = (HttpURLConnection) url.openConnection();
 			httpConn.addRequestProperty("User-Agent", USER_AGENT);
 			InputStream in = httpConn.getInputStream();
+			long size = httpConn.getContentLengthLong();
+			logger.debug("content size = " + size);
 			FileOutputStream out = new FileOutputStream(file);
 			logger.debug("Caching file " + file + " locally.");
 			IOUtils.copy(in, out);

@@ -2,46 +2,28 @@ package com.takipi.tests.speedtest.aws;
 
 import java.io.*;
 import java.net.URL;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 import com.amazonaws.services.s3.model.S3Object;
-import com.amazonaws.services.s3.model.UploadPartRequest;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 
 import com.amazonaws.AmazonClientException;
-import com.amazonaws.auth.profile.ProfileCredentialsProvider;
-import com.amazonaws.event.ProgressEvent;
-import com.amazonaws.event.ProgressListener;
 import com.amazonaws.services.s3.model.PutObjectRequest;
 import com.amazonaws.services.s3.transfer.TransferManager;
 import com.amazonaws.services.s3.transfer.TransferManagerConfiguration;
 import com.amazonaws.services.s3.transfer.Upload;
-import com.amazonaws.services.s3.transfer.model.UploadResult;
 import com.amazonaws.HttpMethod;
-import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
-import com.amazonaws.services.identitymanagement.model.transform.GetCredentialReportResultStaxUnmarshaller;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3Client;
-import com.amazonaws.services.s3.model.AbortMultipartUploadRequest;
-import com.amazonaws.services.s3.model.CompleteMultipartUploadRequest;
 import com.amazonaws.services.s3.model.GeneratePresignedUrlRequest;
-import com.amazonaws.services.s3.model.InitiateMultipartUploadRequest;
-import com.amazonaws.services.s3.model.InitiateMultipartUploadResult;
 import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.amazonaws.services.s3.model.Region;
-import com.amazonaws.services.s3.model.PartETag;
-import com.amazonaws.AmazonClientException;
 import com.amazonaws.AmazonServiceException;
 import com.amazonaws.regions.RegionUtils;
-import com.amazonaws.ClientConfiguration;
-import com.amazonaws.services.s3.transfer.TransferManager;
-import com.amazonaws.services.s3.transfer.Upload;
 
 public class S3Manager
 {
@@ -55,7 +37,8 @@ public class S3Manager
 
     public static final Map<Region, String> buckets;
     public static final String SPEED_TEST_BUCKET = "theboss.io-speed-test";
-    private static long totalbytes = 0;
+    
+    private static int minUploadPartSizeMB = 15;
 	
     static
     {
@@ -64,6 +47,15 @@ public class S3Manager
         txMgr = new TransferManager(CredentialsManager.getCreds());
     }
 	
+    public static void setMinUploadPartSizeMB(int aMinUploadPartSizeMB) {
+    	minUploadPartSizeMB = aMinUploadPartSizeMB;
+    }
+
+    public static int getMinUploadPartSizeMB() {
+    	return minUploadPartSizeMB;
+    }
+
+    
     public static void initBuckets(String prefix, String suffix)
     {
         BUCKET_PREFIX = prefix;
@@ -225,7 +217,7 @@ public class S3Manager
                 } else {
                     regionName = "us-east-1";
                 }
-                logger.debug("Setregion: {}", regionName);
+                //logger.debug("Setregion: {}", regionName);
                 // need to set the region for "eu-central-1" region to work
                 // this enables V4 signing
                 // careful, this is not thread-safe!
@@ -246,7 +238,7 @@ public class S3Manager
     private static boolean doPutObjectMultiPart(String bucket, String key, String file) throws IOException {
     	logger.debug("Starting MultipartUpload.");
     	TransferManagerConfiguration tmc = new TransferManagerConfiguration();
-    	tmc.setMinimumUploadPartSize(15*1024*1024);
+    	tmc.setMinimumUploadPartSize(minUploadPartSizeMB*1024*1024);
         TransferManager tm = new TransferManager( CredentialsManager.getCreds()); //new DefaultAWSCredentialsProviderChain());        
         tm.setConfiguration(tmc);
         PutObjectRequest request = new PutObjectRequest(
@@ -324,7 +316,7 @@ public class S3Manager
             } else {
                 regionName = "us-east-1";
             }
-            logger.debug("Setregion: {}", regionName);
+            //logger.debug("Setregion: {}", regionName);
             // need to set the region for "eu-central-1" region to work
             // this enables V4 signing
             // careful, this is not thread-safe!
@@ -377,13 +369,4 @@ public class S3Manager
         }
     }
     
-    public static long addBytes(long bytes) {
-    	totalbytes += bytes;
-    	return totalbytes;
-    }
-    
-    public static void clearBytes() {
-    	totalbytes =0L;
-    }
-
 }
