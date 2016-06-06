@@ -36,7 +36,7 @@ public class DataBytes
 			case HUGE:
 				return get100MBData();
 			case SUPER:
-				return get500MBData();
+				return get512MBData();
 		}
 		
 		return null;
@@ -53,7 +53,7 @@ public class DataBytes
 			case HUGE:
 				return "100MB";
 			case SUPER:
-				return "500MB";
+				return "512MB";
 		}
 		return null;
 	}
@@ -74,7 +74,7 @@ public class DataBytes
 		return download("100MB.zip");
 	}
 
-	private static String get500MBData() throws Exception
+	private static String get512MBData() throws Exception
 	{
 		return download("512MB.zip");
 	}
