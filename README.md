@@ -25,17 +25,17 @@ The test will download 100MB.zip and 512MB.zip files and use those files for upl
 
 The results will be recorded in the current directory in the file named: theboss.io-speed-test-results.txt
 
-There are a few other commands that are possible:
-```java -jar theboss.io-speed-test-jar-with-dependencies.jar LIST AWS_KEY AWS_SECRET```
+There are a few other commands that are possible:<br/>
+```java -jar theboss.io-speed-test-jar-with-dependencies.jar LIST AWS_KEY AWS_SECRET```<br/>
 This will list all the multipart uploads under the S3 bucket theboss.io-speed-test.
 
-```java -jar theboss.io-speed-test-jar-with-dependencies.jar ABORT AWS_KEY AWS_SECRET```
+```java -jar theboss.io-speed-test-jar-with-dependencies.jar ABORT AWS_KEY AWS_SECRET```<br/>
 This will abort all the multipart uploads older then a week in the S3 bucket theboss.io-speed-test.
 
-The follow other options are not documented but can be run.
-```java -jar theboss.io-speed-test-jar-with-dependencies.jar RUN AWS_KEY AWS_SECRET X```
+The follow other options are not documented but can be run.<br/>
+```java -jar theboss.io-speed-test-jar-with-dependencies.jar RUN AWS_KEY AWS_SECRET X```<br/>
 Where X is a number representing the minimum multipart upload chunk size.  The default is 5, but can be tested with other numbers 10, 15, 20...
  
- ```java -jar theboss.io-speed-test-jar-with-dependencies.jar RUN AWS_KEY AWS_SECRET full```
+ ```java -jar theboss.io-speed-test-jar-with-dependencies.jar RUN AWS_KEY AWS_SECRET full```<br/>
  This option will only run the 512MB Multipart upload tests.  It was created to test the full saturation point by running this in multiple shells and on multiple computers.
   
