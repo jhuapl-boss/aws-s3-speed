@@ -3,7 +3,12 @@ package com.takipi.tests.speedtest.aws;
 import java.io.*;
 import java.net.URL;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 import com.amazonaws.services.s3.model.S3Object;
 
@@ -33,19 +38,42 @@ public class S3Manager
     private static final Logger logger = LoggerFactory.getLogger(S3Manager.class);
 
     private static final AmazonS3 s3client;
-    private static final TransferManager txMgr;
+    private static  TransferManager tm;
 
     public static final Map<Region, String> buckets;
     public static final String SPEED_TEST_BUCKET = "theboss.io-speed-test";
     
     private static int minUploadPartSizeMB = 5;
+    private static int maxThreads = 20;
+    
+    public static ThreadPoolExecutor executor;
+    
 	
-    static
+	static
     {
         s3client = new AmazonS3Client(CredentialsManager.getCreds());
         buckets = new HashMap<Region, String>();
-        txMgr = new TransferManager(CredentialsManager.getCreds());
     }
+	
+	/**
+	 * Must be called once before starting speed tests.
+	 * @param theMaxThreadPoolSize
+	 */
+	public static void initializeTransferMgr(int theMaxThreadPoolSize) {
+		maxThreads = theMaxThreadPoolSize;
+        logger.debug("MaxThreadpool size set to: "+ maxThreads);
+        executor = S3Manager.createSpeedTestExecutorService(maxThreads);
+    	TransferManagerConfiguration tmc = new TransferManagerConfiguration();
+    	tmc.setMinimumUploadPartSize(minUploadPartSizeMB*1024*1024);
+        tm = new TransferManager( s3client, executor, true);
+        tm.setConfiguration(tmc);
+        Runtime.getRuntime().addShutdownHook(new Thread() {
+            public void run() {
+            	logger.debug("Shutting down Threadpool");
+            	S3Manager.shutdownThreadPool();            	
+            }
+        });        
+	}
 	
     public static void setMinUploadPartSizeMB(int aMinUploadPartSizeMB) {
     	minUploadPartSizeMB = aMinUploadPartSizeMB;
@@ -235,12 +263,21 @@ public class S3Manager
     }
     
 
+    public static ThreadPoolExecutor createSpeedTestExecutorService(int maxThreads) {
+        ThreadFactory threadFactory = new ThreadFactory() {
+            private int threadCount = 1;
+
+            public Thread newThread(Runnable r) {
+                Thread thread = new Thread(r);
+                thread.setName("s3-transfer-manager-worker-" + threadCount++);
+                return thread;
+            }
+        };
+        return (ThreadPoolExecutor)Executors.newFixedThreadPool(maxThreads, threadFactory);
+    }
+
     private static boolean doPutObjectMultiPart(String bucket, String key, String file) throws IOException {
     	logger.debug("Starting MultipartUpload.");
-    	TransferManagerConfiguration tmc = new TransferManagerConfiguration();
-    	tmc.setMinimumUploadPartSize(minUploadPartSizeMB*1024*1024);
-        TransferManager tm = new TransferManager( CredentialsManager.getCreds()); //new DefaultAWSCredentialsProviderChain());        
-        tm.setConfiguration(tmc);
         PutObjectRequest request = new PutObjectRequest(
         		bucket, key, new File(file));
         Upload upload = tm.upload(request);
@@ -250,28 +287,24 @@ public class S3Manager
         	return true;
         } catch (AmazonClientException amazonClientException) {
         	System.out.println("Unable to upload file, upload aborted.");
-        	amazonClientException.printStackTrace();
+        	//amazonClientException.printStackTrace();
         	return false;
         } catch (InterruptedException e) {
         	logger.debug("Multipart upload was interrupted.");
-			e.printStackTrace();
 			return false;
 		} finally {
-			try {
-			if(tm!=null)
-				tm.shutdownNow();
-			} catch (Exception e) {			
-			}
+//			try {
+//			if(tm!=null)
+//				tm.shutdownNow();
+//			} catch (Exception e) {			
+//			}
 		}
     }
+    
     
     private static boolean doPutObjectMultiPart(Region region, String bucket, String key, InputStream is, ObjectMetadata metaData)
     {
     	logger.debug("Starting MultipartUpload.");
-    	TransferManagerConfiguration tmc = new TransferManagerConfiguration();
-    	tmc.setMinimumUploadPartSize(5*1024*1024);
-        TransferManager tm = new TransferManager( CredentialsManager.getCreds()); //new DefaultAWSCredentialsProviderChain());        
-        tm.setConfiguration(tmc);
         
         // For more advanced uploads, you can create a request object 
         // and supply additional request parameters (ex: progress listeners,
@@ -290,18 +323,17 @@ public class S3Manager
         	return true;
         } catch (AmazonClientException amazonClientException) {
         	System.out.println("Unable to upload file, upload aborted.");
-        	amazonClientException.printStackTrace();
+        	//amazonClientException.printStackTrace();
         	return false;
         } catch (InterruptedException e) {
         	logger.debug("Multipart upload was interrupted.");
-			e.printStackTrace();
 			return false;
 		} finally {
-			try {
-			if(tm!=null)
-				tm.shutdownNow();
-			} catch (Exception e) {			
-			}
+//			try {
+//			if(tm!=null)
+//				tm.shutdownNow();
+//			} catch (Exception e) {			
+//			}
 		}
     	
     }
@@ -368,5 +400,18 @@ public class S3Manager
             return;
         }
     }
+    
+    public static void shutdownThreadPool() {
+		try {
+			if(tm!=null)
+				tm.shutdownNow();
+			} catch (Exception e) {			
+			}
+    }
+
+    public static int getMaxThreads() {
+		return maxThreads;
+	}
+
     
 }

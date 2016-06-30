@@ -21,7 +21,7 @@ The speedtest uses S3 bucket theboss.io-speed-test in the East Standard Region<b
 Running the test:<br/>
 ```java -jar theboss.io-speed-test-jar-with-dependencies.jar RUN AWS_KEY AWS_SECRET```
 
-The test will download 100MB.zip and 512MB.zip files and use those files for uploading, testing each file 24 times:  12 times using single upload and 12 times using mutipart upload techniques.  The high and low values in each category will be thrown out and the remaining 10 will be averaged.
+The test will download 100MB.zip and 512MB.zip files and use those files for uploading, testing each file 24 times:  12 times using single upload and 12 times using mutipart upload techniques.  The high and low values in each category will be thrown out and the remaining 10 will be averaged.  The default threadpool size is 20.
 
 The results will be recorded in the current directory in the file named: theboss.io-speed-test-results.txt
 
@@ -32,9 +32,8 @@ This will list all the multipart uploads under the S3 bucket theboss.io-speed-te
 ```java -jar theboss.io-speed-test-jar-with-dependencies.jar ABORT AWS_KEY AWS_SECRET```
 This will abort all the multipart uploads older then a week in the S3 bucket theboss.io-speed-test.
 
-The follow other options are not documented but can be run.
 ```java -jar theboss.io-speed-test-jar-with-dependencies.jar RUN AWS_KEY AWS_SECRET X```
-Where X is a number representing the minimum multipart upload chunk size.  The default is 5, but can be tested with other numbers 10, 15, 20...
+Where X is a number representing the maximum threadpool size to use during the test.  The default is 20.  Increasing this number can increase performance, however increasing the threadpool size too high can cause the application to crash.
  
  ```java -jar theboss.io-speed-test-jar-with-dependencies.jar RUN AWS_KEY AWS_SECRET full```
  This option will only run the 512MB Multipart upload tests.  It was created to test the full saturation point by running this in multiple shells and on multiple computers.

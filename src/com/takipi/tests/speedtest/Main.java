@@ -26,62 +26,88 @@ public class Main
     
     public static void printUsage() {
         System.out.println("AWS upload speed Test for theboss.io");
-        System.out.println("Usage: RUN AWS_KEY AWS_SECRET");
-        System.out.println("   This will perform the speed test and create results file");
-        System.out.println("   in the same directory");
+        System.out.println("Usage: RUN AWS_KEY AWS_SECRET [MaxThreadPoolSize] [full]");
+        System.out.println("   This will perform the speed test and create results file in the same directory");
+        System.out.println("   MaxThreadPoolSize - The number of threads to use. Default is 20. Using more threads");
+        System.out.println("       can increase performance.  Setting this to high can crash the application.");
+        System.out.println("    full - adding the word full will cause the system to perform only the 512MB");
+        System.out.println("       multipart upload test.  Running this on on multiple systems help show you the");
+        System.out.println("       maximum bandwidth at your site to s3");
         System.out.println("Usage: LIST AWS_KEY AWS_SECRET");
         System.out.println("   Lists all multipart uploads");
         System.out.println("Usage: ABORT AWS_KEY AWS_SECRET");
         System.out.println("   Aborts all multipart uploads older than 7 days");
     }
 	
-    public static void main(String[] args) throws Exception
+    public static void main(String[] args)
     {
-        if (!((args.length == 3) || (args.length == 4)))
-            {
-        		printUsage();
-                return;
-            }
-        CredentialsManager.setup(args[1], args[2]);
-        
-        if(args[0].toLowerCase().equals("list")) {
-        	MultipartUploadUtil mpuUtil = new MultipartUploadUtil(CredentialsManager.getCreds());
-        	mpuUtil.listMultipartUploads(S3Manager.SPEED_TEST_BUCKET);
-        	return;
-        } else if(args[0].toLowerCase().equals("abort")) {
-        	MultipartUploadUtil mpuUtil = new MultipartUploadUtil(CredentialsManager.getCreds());
-        	mpuUtil.abortMultipartUploads(S3Manager.SPEED_TEST_BUCKET);
-        	return;
-        } else if(!args[0].toLowerCase().equals("run")) {
-        	System.out.println("Unknown command.");
-        	System.out.println("");
-    		printUsage();
-            return;
-        }
-        if( args.length == 4) {
-        	if(args[3].toLowerCase().equals("full")) {
-        		logger.debug("Performing full throughput testings, only use Multipart 512MB tests");
-        		fullThroughputTest = true;
-        	} else {
-	        	int sizeInMegs = 5;	
-	        	try {
-	        	sizeInMegs = Integer.valueOf(args[3]);
-	        	} catch (NumberFormatException n) {
-	            	System.out.println("Unknown command.");
-	            	System.out.println("");
-	        		printUsage();
-	                return;
-	        	}
-	        	logger.debug("Setting Minimum Upload Part size to " + sizeInMegs);
-	        	S3Manager.setMinUploadPartSizeMB(sizeInMegs);
-        	}
-        }
-        S3Manager.initBuckets(false);
-		
-        if(!fullThroughputTest) {
-        	sizeTestRound(Size.HUGE);
-        }
-        sizeTestRound(Size.SUPER);
+        try {
+			if ( !((args.length == 3) || (args.length == 4) || (args.length == 5)) )
+			    {
+					printUsage();
+			        return;
+			    }
+			CredentialsManager.setup(args[1], args[2]);
+			
+			if(args[0].toLowerCase().equals("list")) {
+				MultipartUploadUtil mpuUtil = new MultipartUploadUtil(CredentialsManager.getCreds());
+				mpuUtil.listMultipartUploads(S3Manager.SPEED_TEST_BUCKET);
+				return;
+			} else if(args[0].toLowerCase().equals("abort")) {
+				MultipartUploadUtil mpuUtil = new MultipartUploadUtil(CredentialsManager.getCreds());
+				mpuUtil.abortMultipartUploads(S3Manager.SPEED_TEST_BUCKET);
+				return;
+			} else if(!args[0].toLowerCase().equals("run")) {
+				System.out.println("Unknown command.");
+				System.out.println("");
+				printUsage();
+			    return;
+			}
+			int maxThreadpool = 20;	
+			if( args.length == 4) {
+				if(args[3].toLowerCase().equals("full")) {
+					logger.debug("Performing full throughput testings, only use Multipart 512MB tests");
+					fullThroughputTest = true;
+				} else {
+			    	try {
+			    	maxThreadpool = Integer.valueOf(args[3]);
+			    	} catch (NumberFormatException n) {
+			        	System.out.println("Unknown command.");
+			        	System.out.println("");
+			    		printUsage();
+			            return;
+			    	}
+			    	logger.debug("Setting MaxThreadPool size to " + maxThreadpool);
+				}
+			} else if( args.length == 5) {
+				if(args[4].toLowerCase().equals("full")) {
+					logger.debug("Performing full throughput testings, only use Multipart 512MB tests");
+					fullThroughputTest = true;
+				} 
+				try {
+				maxThreadpool = Integer.valueOf(args[3]);
+				} catch (NumberFormatException n) {
+			    	System.out.println("Unknown command.");
+			    	System.out.println("");
+					printUsage();
+			        return;
+				}
+				logger.debug("Setting MaxThreadPool size to " + maxThreadpool);
+			}
+
+			S3Manager.initializeTransferMgr(maxThreadpool);
+			S3Manager.initBuckets(false);
+			
+			if(!fullThroughputTest) {
+				sizeTestRound(Size.HUGE);
+			}
+			sizeTestRound(Size.SUPER);
+			S3Manager.shutdownThreadPool();
+		} catch (IOException e) {
+			logger.debug(e.getMessage());
+		} catch (Exception e) {
+			logger.debug(e.getMessage());
+		}
     }
 
 	private static void sizeTestRound(Size size) throws Exception, IOException {
@@ -174,8 +200,8 @@ public class Main
                 	FileLogger.info(prefixStr + "Region " + regionName + ": has no timings.", logger);
                 }
                 else {
-                	String output = String.format("%s, Region: %s, Timings: %d, Lowest: %d ms, Highest: %d ms, Average: %.0f ms, Median: %.0f ms, MinUploadPartSize: %d MB", 
-        			prefixStr, regionName, timingsCount, regionTimings.get(0), regionTimings.get(timingsCount - 1), avg, median, S3Manager.getMinUploadPartSizeMB());
+                	String output = String.format("%s, Region: %s, Timings: %d, Lowest: %d ms, Highest: %d ms, Average: %.0f ms, Median: %.0f ms, MinUploadPartSize: %d MB, MaxThreadPoolSize: %d", 
+        			prefixStr, regionName, timingsCount, regionTimings.get(0), regionTimings.get(timingsCount - 1), avg, median, S3Manager.getMinUploadPartSizeMB(), S3Manager.getMaxThreads());
                 	FileLogger.info(output, logger);
                 }
             }
